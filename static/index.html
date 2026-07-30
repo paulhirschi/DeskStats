@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Desk Stats</title>
+<link rel="stylesheet" href="/static/vendor/katex/katex.min.css" />
+<link rel="stylesheet" href="/static/css/tokens.css" />
+<link rel="stylesheet" href="/static/css/styles.css" />
+</head>
+<body>
+<div class="dash">
+
+  <header class="dash-header">
+    <div class="brand">
+      <span class="brand-name">DESK&nbsp;STATS</span>
+      <span class="brand-tag">DS · MATH · STATS</span>
+    </div>
+    <div class="header-right">
+      <button id="settings-toggle" class="icon-btn" title="Choose widgets" aria-label="Choose widgets">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
+      <button id="theme-toggle" class="icon-btn" title="Toggle light/dark" aria-label="Toggle theme">
+        <svg id="theme-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/>
+        </svg>
+      </button>
+      <div class="clock">
+        <div class="clock-time" id="clock-time">--:--:--</div>
+        <div class="clock-date" id="clock-date">&nbsp;</div>
+      </div>
+    </div>
+  </header>
+
+  <main class="grid" id="dashboard-grid">
+    <div class="slot" data-slot="0"></div>
+    <div class="slot" data-slot="1"></div>
+    <div class="slot" data-slot="2"></div>
+    <div class="slot" data-slot="3"></div>
+    <div class="slot" data-slot="4"></div>
+    <div class="slot" data-slot="5"></div>
+  </main>
+
+  <!-- Settings modal: pick which widget occupies each of the 6 slots above -->
+  <div class="modal-overlay" id="settings-overlay" hidden>
+    <div class="modal">
+      <div class="modal-head">
+        <span class="card-dot"></span>
+        <span class="modal-title">choose widgets</span>
+        <button class="modal-close" id="settings-close" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-body" id="settings-slots"></div>
+      <div class="modal-foot">
+        <button class="btn-reset" id="settings-reset">Reset to default</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Widget pool: every widget lives here as a card DOM node; app.js moves the
+       chosen 6 into the slots above. Keeping them all in the document (rather
+       than templating strings) means each widget's ids/timers stay intact
+       across rearrangement. -->
+  <div id="widget-pool" hidden>
+
+    <!-- Law of Large Numbers -->
+    <section class="card" id="card-coin" data-widget="coin">
+      <div class="card-head">
+        <span class="card-dot"></span>
+        <span class="card-label">law of large numbers</span>
+        <span class="card-chip">LIVE</span>
+      </div>
+      <div class="card-body card-body-split">
+        <div class="stat-row">
+          <div class="big-number" id="coin-proportion">0.5000</div>
+          <div class="stat-sub">
+            <div><span id="coin-heads">0</span> heads / <span id="coin-flips">0</span> flips</div>
+            <div class="meta-mono">fair coin, 4 flips / tick</div>
+          </div>
+        </div>
+        <svg id="coin-chart" class="chart" viewBox="0 0 300 90" preserveAspectRatio="none"></svg>
+      </div>
+    </section>
+
+    <!-- Bayes' Theorem / Positive Predictive Value -->
+    <section class="card" id="card-bayes" data-widget="bayes">
+      <div class="card-head">
+        <span class="card-dot"></span>
+        <span class="card-label">bayes theorem · ppv</span>
+      </div>
+      <div class="card-body">
+        <div class="bayes-top">
+          <span class="bayes-eyebrow" id="bayes-scenario">rare disease screening</span>
+        </div>
+        <span class="bayes-annotation meta-mono" id="bayes-annotation">– % base rate → – % PPV</span>
+        <svg id="bayes-chart" class="chart chart-tall" viewBox="0 0 300 100" preserveAspectRatio="none"></svg>
+        <div class="meta-mono" id="bayes-specs">sens –% · spec –%</div>
+      </div>
+    </section>
+
+    <!-- Anscombe's Quartet -->
+    <section class="card" id="card-anscombe" data-widget="anscombe">
+      <div class="card-head">
+        <span class="card-dot"></span>
+        <span class="card-label">anscombe's quartet</span>
+        <div class="pill-picker" id="anscombe-picker">
+          <button class="pill-btn" data-set="0" title="Dataset I">I</button>
+          <button class="pill-btn" data-set="1" title="Dataset II">II</button>
+          <button class="pill-btn" data-set="2" title="Dataset III">III</button>
+          <button class="pill-btn" data-set="3" title="Dataset IV">IV</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="bayes-top">
+          <span class="bayes-eyebrow" id="anscombe-label">dataset I</span>
+        </div>
+        <span class="bayes-annotation meta-mono" id="anscombe-stats">mean x=– · mean y=– · r=–</span>
+        <svg id="anscombe-chart" class="chart chart-tall" viewBox="0 0 300 100" preserveAspectRatio="none"></svg>
+        <div class="meta-mono">same regression line, four very different-looking datasets</div>
+      </div>
+    </section>
+
+    <!-- Random Walk -->
+    <section class="card" id="card-walk" data-widget="walk">
+      <div class="card-head">
+        <span class="card-dot"></span>
+        <span class="card-label">random walk</span>
+        <span class="card-chip">LIVE</span>
+      </div>
+      <div class="card-body">
+        <svg id="walk-chart" class="chart chart-tall" viewBox="0 0 300 140" preserveAspectRatio="none"></svg>
+        <div class="meta-mono">position <span id="walk-position">0.000</span> after <span id="walk-steps">0</span> steps</div>
+      </div>
+    </section>
+
+    <!-- Ulam Spiral -->
+    <section class="card" id="card-ulam" data-widget="ulam">
+      <div class="card-head">
+        <span class="card-dot"></span>
+        <span class="card-label">ulam spiral</span>
+      </div>
+      <div class="card-body card-body-center">
+        <canvas id="ulam-canvas"></canvas>
+      </div>
+      <div class="card-foot meta-mono"><span id="ulam-count">0</span> primes among first <span id="ulam-total">0</span> integers</div>
+    </section>
+
+    <!-- Collatz Conjecture -->
+    <section class="card" id="card-collatz" data-widget="collatz">
+      <div class="card-head">
+        <span class="card-dot"></span>
+        <span class="card-label">collatz conjecture</span>
+        <span class="card-chip">LIVE</span>
+      </div>
+      <div class="card-body card-body-split">
+        <div class="stat-row">
+          <div class="big-number" id="collatz-current">1</div>
+          <div class="stat-sub">
+            <div>start <span id="collatz-start">1</span> · step <span id="collatz-step">0</span></div>
+            <div class="meta-mono">longest: <span id="collatz-longest">–</span></div>
+          </div>
+        </div>
+        <div class="trail" id="collatz-trail"></div>
+      </div>
+    </section>
+
+    <!-- Monty Hall -->
+    <section class="card" id="card-monty" data-widget="monty">
+      <div class="card-head">
+        <span class="card-dot"></span>
+        <span class="card-label">monty hall problem</span>
+        <span class="card-chip">LIVE</span>
+      </div>
+      <div class="card-body card-body-split">
+        <div class="monty-row">
+          <div class="monty-stat">
+            <div class="monty-value" id="monty-stay-rate">33.3%</div>
+            <div class="meta-mono">stay</div>
+          </div>
+          <div class="monty-stat">
+            <div class="monty-value monty-value-accent" id="monty-switch-rate">66.7%</div>
+            <div class="meta-mono">switch</div>
+          </div>
+        </div>
+        <div class="monty-bars">
+          <div class="monty-bar-track"><div class="monty-bar monty-bar-stay" id="monty-bar-stay" style="width:33%"></div></div>
+          <div class="monty-bar-track"><div class="monty-bar monty-bar-switch" id="monty-bar-switch" style="width:67%"></div></div>
+        </div>
+        <div class="meta-mono"><span id="monty-games">0</span> games · always-stay vs. always-switch</div>
+      </div>
+    </section>
+
+    <!-- Distribution Showdown -->
+    <section class="card" id="card-dist" data-widget="dist">
+      <div class="card-head">
+        <span class="card-dot"></span>
+        <span class="card-label">distribution showdown</span>
+      </div>
+      <div class="card-body">
+        <div class="dist-legend" id="dist-legend"></div>
+        <svg id="dist-chart" class="chart chart-tall" viewBox="0 0 300 100" preserveAspectRatio="none"></svg>
+        <div class="meta-mono" id="dist-caption">comparing distributions…</div>
+      </div>
+    </section>
+
+    <!-- Central Limit Theorem -->
+    <section class="card" id="card-dice" data-widget="dice">
+      <div class="card-head">
+        <span class="card-dot"></span>
+        <span class="card-label">central limit theorem</span>
+        <span class="card-chip">LIVE</span>
+      </div>
+      <div class="card-body">
+        <svg id="dice-chart" class="chart chart-tall" viewBox="0 0 300 140" preserveAspectRatio="none"></svg>
+        <div class="meta-mono"><span id="dice-rolls">0</span> rolls of 3d6 → sum histogram</div>
+      </div>
+    </section>
+
+    <!-- Galton Board -->
+    <section class="card" id="card-galton" data-widget="galton">
+      <div class="card-head">
+        <span class="card-dot"></span>
+        <span class="card-label">galton board</span>
+        <span class="card-chip">LIVE</span>
+      </div>
+      <div class="card-body">
+        <svg id="galton-chart" class="chart chart-tall" viewBox="0 0 300 140" preserveAspectRatio="none"></svg>
+        <div class="meta-mono"><span id="galton-total">0</span> balls dropped → binomial(8, 0.5)</div>
+      </div>
+    </section>
+
+    <!-- Benford's Law -->
+    <section class="card" id="card-benford" data-widget="benford">
+      <div class="card-head">
+        <span class="card-dot"></span>
+        <span class="card-label">benford's law</span>
+        <span class="card-chip">LIVE</span>
+      </div>
+      <div class="card-body">
+        <svg id="benford-chart" class="chart chart-tall" viewBox="0 0 300 100" preserveAspectRatio="none"></svg>
+        <div class="meta-mono"><span id="benford-total">0</span> numbers drawn · line = predicted curve</div>
+      </div>
+    </section>
+
+    <!-- Quote -->
+    <section class="card" id="card-quote" data-widget="quote">
+      <div class="card-head">
+        <span class="card-dot"></span>
+        <span class="card-label">quote</span>
+        <button class="icon-btn quote-shuffle" id="quote-shuffle" type="button" title="Shuffle quote" aria-label="Shuffle quote">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="16 3 21 3 21 8"/>
+            <line x1="4" y1="20" x2="21" y2="3"/>
+            <polyline points="21 16 21 21 16 21"/>
+            <line x1="15" y1="15" x2="21" y2="21"/>
+            <line x1="4" y1="4" x2="9" y2="9"/>
+          </svg>
+        </button>
+      </div>
+      <div class="card-body card-body-split">
+        <blockquote class="quote-text quote-text-scroll" id="quote-text">Loading…</blockquote>
+        <div class="quote-author" id="quote-author"></div>
+      </div>
+    </section>
+
+    <!-- Constant digits + fun fact -->
+    <section class="card" id="card-fact" data-widget="fact">
+      <div class="card-head">
+        <span class="card-dot"></span>
+        <span class="card-label">digit by digit</span>
+        <div class="pill-picker" id="constant-picker">
+          <button class="pill-btn" data-constant="pi" title="Pi">π</button>
+          <button class="pill-btn" data-constant="e" title="Euler's number">e</button>
+          <button class="pill-btn" data-constant="tau" title="Tau">τ</button>
+          <button class="pill-btn" data-constant="phi" title="Golden ratio">φ</button>
+          <button class="pill-btn" data-constant="sqrt2" title="Square root of 2">√2</button>
+        </div>
+      </div>
+      <div class="card-body card-body-split">
+        <div class="pi-display meta-mono" id="pi-display">3</div>
+        <div class="fact-box">
+          <div class="fact-eyebrow">did you know</div>
+          <div class="fact-text" id="fact-text">Loading a fact…</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Integral of the Day -->
+    <section class="card" id="card-integral" data-widget="integral">
+      <div class="card-head">
+        <span class="card-dot"></span>
+        <span class="card-label">integral of the day</span>
+        <div class="pill-picker" id="integral-difficulty">
+          <button class="difficulty-btn" data-level="easy" title="Easy">E</button>
+          <button class="difficulty-btn" data-level="medium" title="Medium">M</button>
+          <button class="difficulty-btn" data-level="hard" title="Hard">H</button>
+        </div>
+      </div>
+      <div class="card-body card-body-split">
+        <div class="qotd-prompt-center">
+          <div class="qotd-prompt" id="integral-prompt">Loading today's integral…</div>
+        </div>
+        <button class="qotd-reveal qotd-reveal-math" id="integral-reveal" type="button">
+          <span class="qotd-reveal-icon-wrap"></span>
+          <span class="qotd-reveal-text">Show solution</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Differential Equation of the Day -->
+    <section class="card" id="card-diffeq" data-widget="diffeq">
+      <div class="card-head">
+        <span class="card-dot"></span>
+        <span class="card-label">differential eq. of the day</span>
+        <div class="pill-picker" id="diffeq-difficulty">
+          <button class="difficulty-btn" data-level="easy" title="Easy">E</button>
+          <button class="difficulty-btn" data-level="medium" title="Medium">M</button>
+          <button class="difficulty-btn" data-level="hard" title="Hard">H</button>
+        </div>
+      </div>
+      <div class="card-body card-body-split">
+        <div class="qotd-prompt-center">
+          <div class="qotd-prompt" id="diffeq-prompt">Loading today's differential equation…</div>
+        </div>
+        <button class="qotd-reveal qotd-reveal-math" id="diffeq-reveal" type="button">
+          <span class="qotd-reveal-icon-wrap"></span>
+          <span class="qotd-reveal-text">Show solution</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Derivative of the Day -->
+    <section class="card" id="card-derivative" data-widget="derivative">
+      <div class="card-head">
+        <span class="card-dot"></span>
+        <span class="card-label">derivative of the day</span>
+        <div class="pill-picker" id="derivative-difficulty">
+          <button class="difficulty-btn" data-level="easy" title="Easy">E</button>
+          <button class="difficulty-btn" data-level="medium" title="Medium">M</button>
+          <button class="difficulty-btn" data-level="hard" title="Hard">H</button>
+        </div>
+      </div>
+      <div class="card-body card-body-split">
+        <div class="qotd-prompt-center">
+          <div class="qotd-prompt" id="derivative-prompt">Loading today's derivative…</div>
+        </div>
+        <button class="qotd-reveal qotd-reveal-math" id="derivative-reveal" type="button">
+          <span class="qotd-reveal-icon-wrap"></span>
+          <span class="qotd-reveal-text">Show solution</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Probability Question of the Day -->
+    <section class="card" id="card-probability" data-widget="probability">
+      <div class="card-head">
+        <span class="card-dot"></span>
+        <span class="card-label">probability question of the day</span>
+        <div class="pill-picker" id="probability-difficulty">
+          <button class="difficulty-btn" data-level="easy" title="Easy">E</button>
+          <button class="difficulty-btn" data-level="medium" title="Medium">M</button>
+          <button class="difficulty-btn" data-level="hard" title="Hard">H</button>
+        </div>
+      </div>
+      <div class="card-body card-body-split">
+        <div class="qotd-prompt qotd-prompt-scroll" id="probability-prompt">Loading today's question…</div>
+        <button class="qotd-reveal qotd-reveal-scroll" id="probability-reveal" type="button">
+          <span class="qotd-reveal-icon-wrap"></span>
+          <span class="qotd-reveal-text">Show solution</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Stat Question of the Day -->
+    <section class="card" id="card-stat" data-widget="stat">
+      <div class="card-head">
+        <span class="card-dot"></span>
+        <span class="card-label">stat question of the day</span>
+        <div class="pill-picker" id="stat-difficulty">
+          <button class="difficulty-btn" data-level="easy" title="Easy">E</button>
+          <button class="difficulty-btn" data-level="medium" title="Medium">M</button>
+          <button class="difficulty-btn" data-level="hard" title="Hard">H</button>
+        </div>
+      </div>
+      <div class="card-body card-body-split">
+        <div class="qotd-prompt qotd-prompt-scroll" id="stat-prompt">Loading today's question…</div>
+        <button class="qotd-reveal qotd-reveal-scroll" id="stat-reveal" type="button">
+          <span class="qotd-reveal-icon-wrap"></span>
+          <span class="qotd-reveal-text">Show solution</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Number of the Day -->
+    <section class="card" id="card-numday" data-widget="numday">
+      <div class="card-head">
+        <span class="card-dot"></span>
+        <span class="card-label">number of the day</span>
+      </div>
+      <div class="card-body card-body-split">
+        <div class="stat-row">
+          <div class="big-number" id="numday-value">0</div>
+        </div>
+        <div class="fact-box fact-box-scroll">
+          <div class="fact-eyebrow">did you know</div>
+          <div class="fact-text" id="numday-fact">Loading…</div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<script src="/static/vendor/katex/katex.min.js"></script>
+<script src="/static/vendor/katex/contrib/auto-render.min.js"></script>
+<script src="/static/js/app.js"></script>
+</body>
+</html>

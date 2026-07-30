@@ -1,0 +1,595 @@
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--sub);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+.dash {
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Header ──────────────────────────────────────────────── */
+.dash-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--hair);
+  flex: none;
+}
+.brand { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
+.brand-name {
+  font-weight: 700;
+  font-size: 17px;
+  letter-spacing: -.02em;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.brand-tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: .14em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.header-right { display: flex; align-items: center; gap: 10px; }
+.icon-btn {
+  appearance: none;
+  display: flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px;
+  border: 1px solid var(--hair);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+}
+.icon-btn:hover { color: var(--accent); border-color: var(--accent); }
+.clock { text-align: right; line-height: 1.2; }
+.clock-time {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -.01em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.clock-date {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+}
+
+/* ── Grid ────────────────────────────────────────────────── */
+/* Fixed 3 columns x 2 rows = 6 slots. Which of the 9 widgets fills each
+   slot is chosen in the settings modal and persisted client-side. */
+.grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 12px;
+  padding: 12px;
+}
+.slot {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+}
+.slot > .card { flex: 1; }
+.slot:empty {
+  border: 1px dashed var(--hair);
+  border-radius: 12px;
+}
+
+/* ── Card (faux-terminal chrome, matches sourceCode blocks) ─ */
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid var(--hair);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--bg);
+}
+.card-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: none;
+  padding: 8px 12px 8px 28px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--hair);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.card-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.card-dot {
+  position: absolute;
+  left: 12px;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.card-chip {
+  margin-left: auto;
+  flex: none;
+  font-size: 9px;
+  letter-spacing: .08em;
+  color: #fff;
+  background: var(--accent);
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+/* Card-head picker (difficulty, dataset, constant, ...): pick per widget,
+   remembered per widget — not a global setting, since you might want
+   Easy integrals but Hard probability puzzles. */
+.pill-picker {
+  margin-left: auto;
+  flex: none;
+  display: flex;
+  gap: 3px;
+}
+.difficulty-btn {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--muted);
+  background: var(--bg);
+  border: 1px solid var(--hair);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.difficulty-btn:hover { color: var(--accent); border-color: var(--accent); }
+.difficulty-btn.is-active {
+  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* Same idea as .difficulty-btn, but for labels that vary in width
+   (I/II/III/IV, π/e/τ/φ/√2) — these size to content instead of a fixed
+   16px square. */
+.pill-btn {
+  appearance: none;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 14px;
+  color: var(--muted);
+  background: var(--bg);
+  border: 1px solid var(--hair);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.pill-btn:hover { color: var(--accent); border-color: var(--accent); }
+.pill-btn.is-active { color: #fff; background: var(--accent); border-color: var(--accent); }
+
+/* Points keep the same DOM nodes across dataset switches (see app.js) so
+   moving cx/cy transitions smoothly instead of snapping to the new shape. */
+.anscombe-point { fill: var(--accent); transition: cx 0.9s ease, cy 0.9s ease; }
+.anscombe-line { transition: x1 0.9s ease, y1 0.9s ease, x2 0.9s ease, y2 0.9s ease; }
+
+/* Galton board: one ball is reused for every drop (see app.js) — it's
+   snapped back to the top with transitions off, then released with them
+   back on, so it visibly falls each tick instead of teleporting. */
+.galton-ball { fill: var(--accent); transition: cx 0.85s ease-in, cy 0.85s ease-in; }
+.galton-peg { fill: var(--hair); }
+
+.card-body {
+  flex: 1;
+  min-height: 0;
+  padding: 10px 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.card-body-split { justify-content: space-between; }
+.card-body-center { align-items: center; justify-content: center; }
+.card-foot {
+  flex: none;
+  padding: 6px 14px 9px;
+  border-top: 1px solid var(--hair2);
+}
+
+.meta-mono {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--muted);
+}
+
+/* ── Big numbers / stat rows ─────────────────────────────── */
+.stat-row { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.big-number {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 30px;
+  letter-spacing: -.02em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.stat-sub { font-size: 12px; color: var(--sub); line-height: 1.5; }
+
+/* ── Charts (SVG line/bar) ───────────────────────────────── */
+.chart { flex: 1; min-height: 0; width: 100%; display: block; }
+.chart-tall { min-height: 70px; }
+.chart-line { fill: none; stroke: var(--accent); stroke-width: 2; }
+.chart-ref { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
+.chart-bar { fill: var(--accent); }
+.chart-bar-axis { stroke: var(--hair); stroke-width: 1; }
+
+/* ── Ulam spiral canvas ──────────────────────────────────── */
+#ulam-canvas { width: 100%; height: 100%; display: block; }
+
+/* ── Collatz trail ───────────────────────────────────────── */
+.trail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-content: flex-start;
+  overflow: hidden;
+}
+.trail-chip {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--hair);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+.trail-chip:last-child { color: #fff; background: var(--accent); border-color: var(--accent); }
+
+/* ── Pi digits + fun fact ────────────────────────────────── */
+.pi-display {
+  font-size: 15px;
+  letter-spacing: .02em;
+  color: var(--ink);
+  line-height: 1.4;
+  word-break: break-all;
+}
+.fact-box {
+  border-top: 1px solid var(--hair2);
+  padding-top: 8px;
+}
+.fact-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.fact-text {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--sub);
+  transition: opacity .3s ease;
+}
+.fact-text.is-fading { opacity: 0; }
+
+/* Number of the Day's fact length varies now that Claude writes it, so
+   (like probability/stat) it scrolls internally rather than overflowing
+   the card. */
+.fact-box-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--hair) transparent;
+}
+.fact-box-scroll::-webkit-scrollbar { width: 5px; }
+.fact-box-scroll::-webkit-scrollbar-track { background: transparent; }
+.fact-box-scroll::-webkit-scrollbar-thumb { background: var(--hair); border-radius: 3px; }
+
+/* ── Quote ────────────────────────────────────────────────── */
+/* Sized to match .difficulty-btn exactly, so this card's header is the
+   same height as the QOTD cards' — .icon-btn's 28px default is too tall. */
+.quote-shuffle {
+  margin-left: auto;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+}
+.quote-shuffle svg { width: 10px; height: 10px; }
+.quote-text {
+  margin: 0;
+  flex: 1;
+  min-height: 0;
+  border-left: 3px solid var(--hair);
+  padding-left: 16px;
+  font-size: 15px;
+  line-height: 1.6;
+  font-style: italic;
+  color: var(--ink);
+}
+.quote-text-scroll {
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--hair) transparent;
+}
+.quote-text-scroll::-webkit-scrollbar { width: 5px; }
+.quote-text-scroll::-webkit-scrollbar-track { background: transparent; }
+.quote-text-scroll::-webkit-scrollbar-thumb { background: var(--hair); border-radius: 3px; }
+.quote-author {
+  flex: none;
+  padding-top: 8px;
+  border-top: 1px solid var(--hair2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* ── "X of the day" widgets (integral/derivative/probability/stat) ──
+   Prompt shows immediately; a tap/click on the reveal button swaps its
+   own label for the answer, same pattern as the daily chess puzzle on
+   paulhirschi.com/about — no separate space needed for the answer. */
+.qotd-prompt {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--ink);
+}
+.qotd-reveal {
+  appearance: none;
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  width: 100%;
+  padding: 10px 12px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: left;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--hair);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: color .12s ease, border-color .12s ease;
+}
+.qotd-reveal:hover { color: var(--accent); border-color: var(--accent); }
+.qotd-reveal.is-revealed { color: var(--accent); border-color: var(--accent); }
+.qotd-reveal-icon-wrap { display: inline-flex; flex: none; margin-top: 2px; }
+.qotd-reveal-icon-wrap svg { display: block; width: 14px; height: 14px; }
+.qotd-reveal-text { flex: 1; min-width: 0; }
+
+/* Integral/Derivative: the expression is the whole point of the widget,
+   so it's centered both ways in the space above the reveal button. */
+.qotd-prompt-center {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  /* app.js scales the equation to fill this box; overflow-x is just a
+     safety net for the rare case a very long expression still can't
+     shrink enough to fit at the minimum scale it allows. */
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--hair) transparent;
+}
+.qotd-prompt-center::-webkit-scrollbar { height: 5px; }
+.qotd-prompt-center::-webkit-scrollbar-track { background: transparent; }
+.qotd-prompt-center::-webkit-scrollbar-thumb { background: var(--hair); border-radius: 3px; }
+
+.qotd-reveal-math { justify-content: center; text-align: center; }
+.qotd-reveal-math .qotd-reveal-text { flex: none; text-align: center; }
+
+/* KaTeX sizing: fit the compact card widths rather than its default size.
+   app.js overrides this per-item via inline font-size once it measures
+   the rendered equation; this is just the pre-JS/fallback baseline. */
+.qotd-prompt .katex, .qotd-reveal .katex { font-size: 0.75em; }
+.qotd-prompt .katex-display { margin: 0; }
+
+/* Probability/Stat: these are story problems and their Claude-written
+   explanations vary in length, so both the question and (once shown) the
+   answer scroll internally instead of spilling past the card's edge. */
+.qotd-prompt-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.qotd-reveal-scroll {
+  flex: none;
+  max-height: 96px;
+  overflow-y: auto;
+}
+.qotd-prompt-scroll,
+.qotd-reveal-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--hair) transparent;
+}
+.qotd-prompt-scroll::-webkit-scrollbar,
+.qotd-reveal-scroll::-webkit-scrollbar { width: 5px; }
+.qotd-prompt-scroll::-webkit-scrollbar-track,
+.qotd-reveal-scroll::-webkit-scrollbar-track { background: transparent; }
+.qotd-prompt-scroll::-webkit-scrollbar-thumb,
+.qotd-reveal-scroll::-webkit-scrollbar-thumb { background: var(--hair); border-radius: 3px; }
+
+/* ── Bayes / PPV chart ────────────────────────────────────── */
+.bayes-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.bayes-eyebrow {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  transition: opacity .3s ease;
+}
+.bayes-annotation {
+  display: block;
+  color: var(--accent);
+  transition: opacity .3s ease;
+}
+.is-fading { opacity: 0; }
+
+/* ── Distribution showdown ───────────────────────────────── */
+.dist-legend { display: flex; gap: 16px; flex-wrap: wrap; transition: opacity .3s ease; }
+.legend-item {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--sub);
+}
+.legend-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+
+/* ── Monty Hall ───────────────────────────────────────────── */
+.monty-row { display: flex; gap: 24px; }
+.monty-stat { display: flex; flex-direction: column; gap: 3px; }
+.monty-value {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 26px;
+  letter-spacing: -.02em;
+  color: var(--sub);
+  font-variant-numeric: tabular-nums;
+}
+.monty-value-accent { color: var(--accent); }
+.monty-bars { display: flex; flex-direction: column; gap: 6px; }
+.monty-bar-track {
+  height: 7px; border-radius: 3px; background: var(--hair2); overflow: hidden;
+}
+.monty-bar { height: 100%; border-radius: 3px; transition: width .4s ease; }
+.monty-bar-stay { background: var(--muted); }
+.monty-bar-switch { background: var(--accent); }
+
+/* ── Settings modal (widget picker) ──────────────────────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+.modal-overlay[hidden] { display: none; }
+.modal {
+  width: 420px;
+  max-width: calc(100vw - 40px);
+  max-height: calc(100vh - 40px);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--hair);
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--bg);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+}
+.modal-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: none;
+  padding: 12px 14px 12px 30px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--hair);
+}
+.modal-title {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.modal-close {
+  margin-left: auto;
+  appearance: none;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px;
+}
+.modal-close:hover { color: var(--accent); }
+.modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.slot-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.slot-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+  flex: none;
+  width: 56px;
+}
+.slot-select {
+  flex: 1;
+  min-width: 0;
+  appearance: none;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--hair);
+  border-radius: 7px;
+  padding: 7px 10px;
+  cursor: pointer;
+}
+.slot-select:hover, .slot-select:focus { border-color: var(--accent); outline: none; }
+.modal-foot {
+  flex: none;
+  padding: 12px 18px 16px;
+  border-top: 1px solid var(--hair2);
+}
+.btn-reset {
+  appearance: none;
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: .06em;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--hair);
+  border-radius: 7px;
+  padding: 9px;
+  cursor: pointer;
+}
+.btn-reset:hover { color: var(--accent); border-color: var(--accent); }
+
+/* ── Small-screen fallback (anything short of the 1024x600 target) ── */
+@media (max-width: 900px), (max-height: 560px) {
+  .dash { overflow-y: auto; }
+  .grid {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+  }
+}

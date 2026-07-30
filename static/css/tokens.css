@@ -1,0 +1,43 @@
+/* Design tokens ported from ~/Projects/website/styles/tokens-{light,dark}.scss
+   so this dashboard matches paulhirschi.com. A desk display defaults to dark
+   (kinder on the eyes, less glare); toggle with the switch in the header,
+   which just flips [data-theme] on <html>. */
+
+:root {
+  --bg: #0e0f12;
+  --ink: #f3f3f0;
+  --sub: #c2c3c8;
+  --muted: #6a6b72;
+  --hair: #23242a;
+  --hair2: #191a1f;
+  --accent: #5a8dff;
+  --accent-soft: #1a2436;
+  --surface: #16171c;
+  --code-bg: #14151a;
+  --c-kw: #c4a6f7;
+  --c-str: #5fd3c4;
+  --c-com: #5e6068;
+  --c-num: #f0a060;
+  --c-fn: #6a98ff;
+
+  --font-sans: "Hanken Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+:root[data-theme="light"] {
+  --bg: #fbfbf9;
+  --ink: #17171a;
+  --sub: #42423e;
+  --muted: #9a9a93;
+  --hair: #e7e6e0;
+  --hair2: #efeee8;
+  --accent: #1f6feb;
+  --accent-soft: #eaf1fd;
+  --surface: #f4f3ee;
+  --code-bg: #f7f6f1;
+  --c-kw: #7c3aed;
+  --c-str: #0d9488;
+  --c-com: #a6a69d;
+  --c-num: #c2531f;
+  --c-fn: #1f6feb;
+}
