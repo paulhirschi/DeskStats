@@ -2,7 +2,7 @@
 <html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <title>Desk Stats</title>
 <link rel="stylesheet" href="/static/vendor/katex/katex.min.css" />
 <link rel="stylesheet" href="/static/css/tokens.css" />
@@ -42,6 +42,12 @@
     <div class="slot" data-slot="3"></div>
     <div class="slot" data-slot="4"></div>
     <div class="slot" data-slot="5"></div>
+    <!-- Third row: only shown (see styles.css) once there's enough
+         height and width to keep all 9 cards comfortable, e.g. a
+         tablet in landscape rather than the 1024x600 baseline. -->
+    <div class="slot slot-extra" data-slot="6"></div>
+    <div class="slot slot-extra" data-slot="7"></div>
+    <div class="slot slot-extra" data-slot="8"></div>
   </main>
 
   <!-- Settings modal: pick which widget occupies each of the 6 slots above -->
@@ -71,6 +77,11 @@
         <span class="card-dot"></span>
         <span class="card-label">law of large numbers</span>
         <span class="card-chip">LIVE</span>
+        <button class="icon-btn card-reset-btn" id="coin-reset" type="button" title="Reset" aria-label="Reset simulation"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 4 23 10 17 10"/>
+            <polyline points="1 20 1 14 7 14"/>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+          </svg></button>
       </div>
       <div class="card-body card-body-split">
         <div class="stat-row">
@@ -128,6 +139,11 @@
         <span class="card-dot"></span>
         <span class="card-label">random walk</span>
         <span class="card-chip">LIVE</span>
+        <button class="icon-btn card-reset-btn" id="walk-reset" type="button" title="Reset" aria-label="Reset simulation"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 4 23 10 17 10"/>
+            <polyline points="1 20 1 14 7 14"/>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+          </svg></button>
       </div>
       <div class="card-body">
         <svg id="walk-chart" class="chart chart-tall" viewBox="0 0 300 140" preserveAspectRatio="none"></svg>
@@ -153,6 +169,11 @@
         <span class="card-dot"></span>
         <span class="card-label">collatz conjecture</span>
         <span class="card-chip">LIVE</span>
+        <button class="icon-btn card-reset-btn" id="collatz-reset" type="button" title="Reset" aria-label="Reset simulation"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 4 23 10 17 10"/>
+            <polyline points="1 20 1 14 7 14"/>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+          </svg></button>
       </div>
       <div class="card-body card-body-split">
         <div class="stat-row">
@@ -172,6 +193,11 @@
         <span class="card-dot"></span>
         <span class="card-label">monty hall problem</span>
         <span class="card-chip">LIVE</span>
+        <button class="icon-btn card-reset-btn" id="monty-reset" type="button" title="Reset" aria-label="Reset simulation"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 4 23 10 17 10"/>
+            <polyline points="1 20 1 14 7 14"/>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+          </svg></button>
       </div>
       <div class="card-body card-body-split">
         <div class="monty-row">
@@ -211,6 +237,11 @@
         <span class="card-dot"></span>
         <span class="card-label">central limit theorem</span>
         <span class="card-chip">LIVE</span>
+        <button class="icon-btn card-reset-btn" id="dice-reset" type="button" title="Reset" aria-label="Reset simulation"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 4 23 10 17 10"/>
+            <polyline points="1 20 1 14 7 14"/>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+          </svg></button>
       </div>
       <div class="card-body">
         <svg id="dice-chart" class="chart chart-tall" viewBox="0 0 300 140" preserveAspectRatio="none"></svg>
@@ -224,6 +255,11 @@
         <span class="card-dot"></span>
         <span class="card-label">galton board</span>
         <span class="card-chip">LIVE</span>
+        <button class="icon-btn card-reset-btn" id="galton-reset" type="button" title="Reset" aria-label="Reset simulation"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 4 23 10 17 10"/>
+            <polyline points="1 20 1 14 7 14"/>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+          </svg></button>
       </div>
       <div class="card-body">
         <svg id="galton-chart" class="chart chart-tall" viewBox="0 0 300 140" preserveAspectRatio="none"></svg>
@@ -237,6 +273,11 @@
         <span class="card-dot"></span>
         <span class="card-label">benford's law</span>
         <span class="card-chip">LIVE</span>
+        <button class="icon-btn card-reset-btn" id="benford-reset" type="button" title="Reset" aria-label="Reset simulation"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 4 23 10 17 10"/>
+            <polyline points="1 20 1 14 7 14"/>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+          </svg></button>
       </div>
       <div class="card-body">
         <svg id="benford-chart" class="chart chart-tall" viewBox="0 0 300 100" preserveAspectRatio="none"></svg>

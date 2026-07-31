@@ -36,6 +36,9 @@ class CoinFlipSim:
                 self.heads += 1
         self.history.append(self.proportion)
 
+    def reset(self) -> None:
+        self.__init__()
+
     @property
     def proportion(self) -> float:
         return self.heads / self.flips if self.flips else 0.5
@@ -66,6 +69,9 @@ class DiceSumSim:
         self.histogram[total] += 1
         self.rolls += 1
 
+    def reset(self) -> None:
+        self.__init__()
+
     def snapshot(self) -> dict:
         return {
             "rolls": self.rolls,
@@ -86,6 +92,9 @@ class RandomWalkSim:
         self.position += random.gauss(0, 1)
         self.steps += 1
         self.history.append(self.position)
+
+    def reset(self) -> None:
+        self.__init__()
 
     def snapshot(self) -> dict:
         return {
@@ -128,6 +137,9 @@ class CollatzSim:
         self.step += 1
         self.trail.append(self.current)
 
+    def reset(self) -> None:
+        self.__init__()
+
     def snapshot(self) -> dict:
         return {
             "start": self.start,
@@ -164,6 +176,9 @@ class MontyHallSim:
             else:
                 self.switch_wins += 1
 
+    def reset(self) -> None:
+        self.__init__()
+
     def snapshot(self) -> dict:
         return {
             "games": self.games,
@@ -193,6 +208,9 @@ class GaltonBoardSim:
             self.total += 1
             self.last_bin = bin_index
 
+    def reset(self) -> None:
+        self.__init__()
+
     def snapshot(self) -> dict:
         return {"bins": list(self.bins), "total": self.total, "last_bin": self.last_bin}
 
@@ -219,12 +237,17 @@ class BenfordSim:
             self.counts[leading] += 1
             self.total += 1
 
+    def reset(self) -> None:
+        self.__init__()
+
     def snapshot(self) -> dict:
         return {"counts": self.counts[1:], "total": self.total}
 
 
 class SimulationHub:
     """Owns every simulation and the background loop that advances them."""
+
+    RESETTABLE = ("coin", "dice", "walk", "collatz", "monty", "galton", "benford")
 
     def __init__(self) -> None:
         self.coin = CoinFlipSim()
@@ -255,6 +278,11 @@ class SimulationHub:
         if self._task is not None:
             self._task.cancel()
             self._task = None
+
+    def reset(self, name: str) -> None:
+        if name not in self.RESETTABLE:
+            raise KeyError(f"unknown simulation: {name!r}")
+        getattr(self, name).reset()
 
     def snapshot(self) -> dict:
         return {

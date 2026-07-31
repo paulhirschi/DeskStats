@@ -11,9 +11,17 @@ html, body {
 
 .dash {
   height: 100vh;
+  height: 100dvh; /* iOS Safari's address bar makes 100vh taller than
+    what's actually visible; with overflow:hidden that silently clips
+    the bottom row. dvh tracks the real visible viewport instead —
+    browsers that don't understand it just keep the 100vh above. */
   width: 100vw;
   display: flex;
   flex-direction: column;
+  /* Same idea for notches/home-indicator/Guided-Access insets: reserve
+     real space for them instead of letting content run underneath. */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
 /* ── Header ──────────────────────────────────────────────── */
@@ -68,8 +76,13 @@ html, body {
 }
 
 /* ── Grid ────────────────────────────────────────────────── */
-/* Fixed 3 columns x 2 rows = 6 slots. Which of the 9 widgets fills each
-   slot is chosen in the settings modal and persisted client-side. */
+/* Fixed 3 columns; 2 rows (6 slots) normally, sliding in a 3rd row (9
+   slots total, the 3 `.slot-extra` ones below) once there's enough
+   width AND height to keep cards comfortable — see the matching
+   min-width/min-height media query further down. Which widget fills
+   each visible slot is chosen in the settings modal and persisted
+   client-side; app.js has an identical `matchMedia` check so it knows
+   how many slots are actually on screen right now. */
 .grid {
   flex: 1;
   min-height: 0;
@@ -84,6 +97,7 @@ html, body {
   min-height: 0;
   display: flex;
 }
+.slot-extra { display: none; }
 .slot > .card { flex: 1; }
 .slot:empty {
   border: 1px dashed var(--hair);
@@ -321,6 +335,16 @@ html, body {
   border-radius: 4px;
 }
 .quote-shuffle svg { width: 10px; height: 10px; }
+
+/* Reset button for LIVE (server-simulated) widgets — same compact sizing
+   as .quote-shuffle, reused verbatim across every live card-head. */
+.card-reset-btn {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+}
+.card-reset-btn svg { width: 10px; height: 10px; }
 .quote-text {
   margin: 0;
   flex: 1;
@@ -498,6 +522,7 @@ html, body {
   width: 420px;
   max-width: calc(100vw - 40px);
   max-height: calc(100vh - 40px);
+  max-height: calc(100dvh - 40px);
   display: flex;
   flex-direction: column;
   border: 1px solid var(--hair);
@@ -592,4 +617,17 @@ html, body {
     grid-template-columns: repeat(2, 1fr);
     grid-template-rows: repeat(3, 1fr);
   }
+}
+
+/* ── Tall enough: slide in a third row of widgets ────────────
+   Rather than stretch 2 rows taller on a big/tall display (a tablet in
+   landscape, say), add a 3rd row of cards so the extra space is used
+   for more widgets instead of more whitespace per widget. 960/760 is
+   chosen to always be outside the 900/560 fallback above, so the two
+   never fight over the same viewport. KEEP THIS IN SYNC with the
+   identical `THREE_ROW_QUERY` string in app.js — that's what decides
+   how many widgets actually get placed into these slots. */
+@media (min-width: 960px) and (min-height: 760px) {
+  .grid { grid-template-rows: repeat(3, 1fr); }
+  .slot-extra { display: flex; }
 }

@@ -37,12 +37,32 @@ Run it: `uv run uvicorn app.main:app --host 0.0.0.0 --port 8000`
 
 ## The widget-slot system
 
-The grid is a **fixed 2-row × 3-column layout — 6 visible slots**, no
-more, no less. There are currently **19 widgets** registered in the
-`WIDGETS` array in `app.js`, and the user picks which 6 show via the
-gear-icon settings modal.
+The grid is **3 columns, always** — but the row count is responsive:
+**2 rows (6 slots)** normally, sliding in a **3rd row (9 slots)** once
+the viewport is both wide and tall enough (a tablet in landscape, a big
+monitor — not the 1024×600 baseline). There are currently **19
+widgets** registered in the `WIDGETS` array in `app.js`; the user picks
+which ones show, per visible slot, via the gear-icon settings modal.
 
-How it actually works, because it's easy to get wrong:
+The responsive breakpoint is duplicated on purpose, once in each
+language, and **the two numbers must be kept in sync by hand**:
+
+- `styles.css` — `@media (min-width: 960px) and (min-height: 760px)`
+  sets `grid-template-rows: repeat(3, 1fr)` and reveals the 3
+  `.slot-extra` divs (`display: flex`, overriding their default
+  `display: none`). This is what the browser actually renders.
+- `app.js` — `const THREE_ROW_QUERY = "(min-width: 960px) and
+  (min-height: 760px)"` feeds a `matchMedia()` that `getSlotCount()`
+  checks (returns `9` or `6`). This is what JS uses to decide how many
+  widgets to actually place. If these two ever drift apart, the grid
+  will *visually* show 9 cells while JS only populates 6 of them (or
+  vice versa) — always change both at once.
+- The 960/760 numbers were chosen specifically to sit outside the
+  pre-existing small-screen fallback (`max-width: 900px, max-height:
+  560px`, 2 columns + scroll) so the two media queries can never both
+  match at once and fight over the grid.
+
+How the slot mechanics work, because it's easy to get wrong:
 
 - Every widget's `<section class="card" data-widget="...">` lives
   permanently inside `#widget-pool` (a `hidden` div) in `index.html`.
@@ -50,16 +70,27 @@ How it actually works, because it's easy to get wrong:
   deliberate: a widget's JS timers/state (an SVG chart mid-transition, a
   KaTeX render, a `setInterval`) keep running even while the widget
   isn't in a visible slot.
-- `applyLayout()` in `app.js` moves the chosen 6 widgets' DOM nodes
-  from the pool into the 6 `.slot` divs via `appendChild`.
+- `applyLayout()` in `app.js` calls `getSlotCount()` to find out how
+  many slots are *currently* visible, then moves that many widgets'
+  DOM nodes from the pool into the `.slot` divs via `appendChild`.
   **`appendChild` moves a node but does not clear the destination's
   existing children** — so `applyLayout()` first returns *every*
-  widget to the pool, then places the chosen 6. Skipping that first
+  widget to the pool, then places the visible ones. Skipping that first
   step causes duplicate widgets stacked in one slot (this actually
   happened once — see Gotchas).
-- Layout is persisted to `localStorage["desk-dashboard-layout"]`
-  (a JSON array of 6 widget ids, slot order). `DEFAULT_LAYOUT` in
-  `app.js` is the fallback: `coin, bayes, walk, collatz, dice, fact`.
+- `layout` is a **9-entry array always**, in `app.js` and in
+  `localStorage["desk-dashboard-layout"]`, even while only 6 slots are
+  on screen — `applyLayout()` just uses `layout.slice(0,
+  getSlotCount())`. This means resizing down to 2 rows and back up to 3
+  doesn't forget what was in slots 7–9. `DEFAULT_LAYOUT` in `app.js`
+  is the fallback (9 ids: the original 6, then `monty, quote, numday`
+  for the 3rd row).
+- `threeRowMedia.addEventListener("change", applyLayout)` re-runs
+  placement whenever the breakpoint is crossed (resizing the window,
+  rotating a tablet). The settings modal's row count is only read at
+  `openSettings()` time, though — if you resize while it's open, it
+  won't add/remove rows until you close and reopen it. Acceptable
+  trade-off so far, not fixed.
 - To add a new widget: add its card markup inside `#widget-pool`, add
   `{ id, label }` to `WIDGETS`, wire up its JS (see the three patterns
   below), and it's automatically available in the picker — no other
@@ -208,6 +239,25 @@ no difficulty axis — it's a fact, not a problem to solve.
    click tool occasionally misses due to stale coordinates after a
    layout shift. Before concluding a click handler is broken, verify
    with a direct `element.click()` / `dispatchEvent` in the JS console.
+8. **`100vh` is a lie on iOS Safari.** It's sized against the layout
+   viewport (address bar included), not what's actually visible — with
+   `overflow: hidden` on `.dash`, that extra height just gets silently
+   clipped off the bottom. This was reported as "the bottom row gets
+   cut off in Guided Access." Fixed with `height: 100dvh` (after a
+   `100vh` fallback line, since older browsers just ignore the
+   `dvh` line and keep the one before it) on both `.dash` and the
+   settings modal. Also added `env(safe-area-inset-*)` padding on
+   `.dash` and `viewport-fit=cover` on the meta viewport tag for
+   notches/home-indicators — don't remove either without re-testing on
+   an actual notched/Guided-Access device, since desktop browsers can't
+   reproduce the bug that motivated them.
+9. **Two copies of the same breakpoint will eventually disagree.** The
+   3-row responsive grid (see widget-slot system above) needs the exact
+   same min-width/min-height numbers in both `styles.css` (a media
+   query) and `app.js` (a `matchMedia` string) because CSS can't tell
+   JS how many grid cells it decided to show. There's no build-time
+   check tying these together — if you change one, grep for the other
+   number and change it too.
 
 ## Content standards (quotes, facts, historical data)
 

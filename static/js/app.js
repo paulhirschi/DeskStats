@@ -357,6 +357,32 @@ async function pollSnapshot() {
 pollSnapshot();
 setInterval(pollSnapshot, POLL_MS);
 
+// Reset buttons in each LIVE card-head — resets that sim's state on the
+// server (so every connected display picks it up) and repaints immediately
+// instead of waiting for the next poll tick.
+const RESET_BUTTON_IDS = {
+  coin: "coin-reset",
+  dice: "dice-reset",
+  walk: "walk-reset",
+  collatz: "collatz-reset",
+  monty: "monty-reset",
+  galton: "galton-reset",
+  benford: "benford-reset",
+};
+
+Object.entries(RESET_BUTTON_IDS).forEach(([name, id]) => {
+  const btn = document.getElementById(id);
+  if (!btn) return;
+  btn.addEventListener("click", async () => {
+    try {
+      const res = await fetch(`/api/reset/${name}`, { method: "POST" });
+      if (res.ok) renderSnapshot(await res.json());
+    } catch (err) {
+      // Server likely restarting — next poll will pick up the real state.
+    }
+  });
+});
+
 /* ── Ulam spiral (client-side, computed once) ────────────── */
 function sieve(n) {
   const isPrime = new Uint8Array(n + 1).fill(1);
@@ -1394,9 +1420,22 @@ const WIDGETS = [
   { id: "numday", label: "Number of the Day" },
 ];
 const WIDGET_IDS = WIDGETS.map((w) => w.id);
-const DEFAULT_LAYOUT = ["coin", "bayes", "walk", "collatz", "dice", "fact"];
+// First 6 are the original default; the last 3 are only ever placed
+// once a screen is tall/wide enough to show the 3rd row (see below) —
+// they still get remembered in localStorage even while hidden, though,
+// so shrinking back down and growing again doesn't lose the choice.
+const DEFAULT_LAYOUT = ["coin", "bayes", "walk", "collatz", "dice", "fact", "monty", "quote", "numday"];
 const LAYOUT_KEY = "desk-dashboard-layout";
-const SLOT_COUNT = 6;
+const MAX_SLOTS = 9;
+
+// Kept in sync with the identical min-width/min-height media query in
+// styles.css — that one decides how the grid *looks* (2 vs. 3 rows),
+// this one decides how many widgets app.js actually places into it.
+const THREE_ROW_QUERY = "(min-width: 960px) and (min-height: 760px)";
+const threeRowMedia = window.matchMedia(THREE_ROW_QUERY);
+function getSlotCount() {
+  return threeRowMedia.matches ? MAX_SLOTS : 6;
+}
 
 function loadLayout() {
   let saved = null;
@@ -1408,8 +1447,8 @@ function loadLayout() {
   let result = Array.isArray(saved) ? saved.filter((id) => WIDGET_IDS.includes(id)) : [];
   result = [...new Set(result)];
   const fillPool = [...DEFAULT_LAYOUT, ...WIDGET_IDS].filter((id) => !result.includes(id));
-  while (result.length < SLOT_COUNT && fillPool.length) result.push(fillPool.shift());
-  return result.slice(0, SLOT_COUNT);
+  while (result.length < MAX_SLOTS && fillPool.length) result.push(fillPool.shift());
+  return result.slice(0, MAX_SLOTS);
 }
 
 let layout = loadLayout();
@@ -1418,12 +1457,16 @@ const widgetPool = document.getElementById("widget-pool");
 function applyLayout() {
   // appendChild only moves a node, it never clears what's already sitting
   // in the destination — so every widget goes back to the pool first,
-  // which empties all 6 slots, before the chosen 6 are placed again.
+  // which empties every slot, before the currently-visible ones are
+  // placed again. `layout` always holds up to MAX_SLOTS entries even
+  // when only 6 are on screen — the rest just stay parked in the pool.
+  const visibleCount = getSlotCount();
+  const visible = layout.slice(0, visibleCount);
   WIDGET_IDS.forEach((id) => {
     const cardEl = document.querySelector(`[data-widget="${id}"]`);
     if (cardEl) widgetPool.appendChild(cardEl);
   });
-  layout.forEach((widgetId, slotIndex) => {
+  visible.forEach((widgetId, slotIndex) => {
     const slotEl = document.querySelector(`.slot[data-slot="${slotIndex}"]`);
     const cardEl = document.querySelector(`[data-widget="${widgetId}"]`);
     if (slotEl && cardEl) slotEl.appendChild(cardEl);
@@ -1432,7 +1475,7 @@ function applyLayout() {
   // Canvas/math-fit widgets need real container dimensions, only
   // available once actually seated in a slot — redraw/refit now that
   // they've landed (harmless no-ops for whichever aren't shown).
-  if (layout.includes("ulam")) drawUlamSpiral();
+  if (visible.includes("ulam")) drawUlamSpiral();
   mathFitRefreshers.forEach((fn) => fn());
 }
 
@@ -1456,7 +1499,7 @@ function setSlotWidget(slotIndex, widgetId) {
 
 function buildSettingsUI() {
   settingsSlots.innerHTML = "";
-  for (let i = 0; i < SLOT_COUNT; i++) {
+  for (let i = 0; i < getSlotCount(); i++) {
     const row = document.createElement("div");
     row.className = "slot-row";
 
@@ -1508,5 +1551,12 @@ settingsReset.addEventListener("click", () => {
   applyLayout();
   refreshSettingsUI();
 });
+
+// Crossing the 3-row breakpoint (e.g. rotating a tablet, or just
+// resizing the window) changes how many slots are actually on screen —
+// re-run the same placement logic so the 3rd row's widgets slide in or
+// get parked back in the pool. If the picker happens to be open, its
+// row count is stale until next opened, which is a fine trade-off.
+threeRowMedia.addEventListener("change", applyLayout);
 
 applyLayout();

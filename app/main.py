@@ -53,6 +53,15 @@ async def snapshot() -> dict:
     return hub.snapshot()
 
 
+@app.post("/api/reset/{name}")
+async def reset_simulation(name: str) -> dict:
+    try:
+        hub.reset(name)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return hub.snapshot()
+
+
 @app.get("/api/qotd/{qtype}")
 async def qotd(qtype: str, difficulty: str = "medium") -> dict:
     try:
