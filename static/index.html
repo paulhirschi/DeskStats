@@ -285,6 +285,37 @@
       </div>
     </section>
 
+    <!-- ISS Tracker (real live data via Open Notify, not a simulation) -->
+    <section class="card" id="card-iss" data-widget="iss">
+      <div class="card-head">
+        <span class="card-dot"></span>
+        <span class="card-label">iss tracker</span>
+        <span class="card-chip">LIVE</span>
+      </div>
+      <div class="card-body">
+        <svg id="iss-map" class="chart chart-tall iss-map" viewBox="0 0 300 150" preserveAspectRatio="none"></svg>
+        <div class="meta-mono"><span id="iss-coords">–</span> · <span id="iss-people-count">–</span> people currently in space</div>
+      </div>
+    </section>
+
+    <!-- Periodic Table -->
+    <section class="card" id="card-periodic" data-widget="periodic">
+      <div class="card-head">
+        <span class="card-dot"></span>
+        <span class="card-label">periodic table</span>
+      </div>
+      <div class="card-body card-body-split">
+        <svg id="periodic-chart" class="chart" viewBox="0 0 306 170" preserveAspectRatio="none"></svg>
+        <div class="stat-row">
+          <div class="big-number" id="periodic-symbol-big">H</div>
+          <div class="stat-sub">
+            <div id="periodic-name">Hydrogen</div>
+            <div class="meta-mono">#<span id="periodic-number">1</span> · <span id="periodic-mass">1.008</span> u · <span id="periodic-category">diatomic nonmetal</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- Quote -->
     <section class="card" id="card-quote" data-widget="quote">
       <div class="card-head">
@@ -456,6 +487,8 @@
 
 <script src="/static/vendor/katex/katex.min.js"></script>
 <script src="/static/vendor/katex/contrib/auto-render.min.js"></script>
+<script src="/static/js/world-land.js"></script>
+<script src="/static/js/periodic-table.js"></script>
 <script src="/static/js/app.js"></script>
 </body>
 </html>

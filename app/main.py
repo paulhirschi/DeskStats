@@ -6,6 +6,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
+from app.iss import ISSTracker
 from app.qotd import QOTDError, get_daily_question
 from app.simulations import SimulationHub
 
@@ -15,6 +16,7 @@ STATIC_DIR = BASE_DIR / "static"
 load_dotenv(BASE_DIR / ".env")
 
 hub = SimulationHub()
+iss_tracker = ISSTracker()
 
 
 class NoCacheStaticFiles(StaticFiles):
@@ -33,8 +35,10 @@ class NoCacheStaticFiles(StaticFiles):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     hub.start()
+    iss_tracker.start()
     yield
     hub.stop()
+    iss_tracker.stop()
 
 
 app = FastAPI(title="Desk Dashboard", lifespan=lifespan)
@@ -50,7 +54,7 @@ async def index() -> Response:
 
 @app.get("/api/snapshot")
 async def snapshot() -> dict:
-    return hub.snapshot()
+    return {**hub.snapshot(), "iss": iss_tracker.snapshot()}
 
 
 @app.post("/api/reset/{name}")

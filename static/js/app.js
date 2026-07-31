@@ -271,6 +271,103 @@ function setupGaltonBoard(svg) {
   };
 }
 
+/* ── ISS tracker map ──────────────────────────────────────────
+   An equirectangular projection with a real (if heavily simplified)
+   world coastline — see world-land.js for the data and its provenance —
+   under a plain lat/lon graticule. The dot is a persistent SVG node so
+   its cx/cy transition glides smoothly between fixes (same pattern as
+   the Galton board's ball); the trail is cheap to fully redraw each poll
+   since it needs a variable number of disjoint segments — broken
+   wherever the ground track jumps across the antimeridian (lon +180 to
+   -180 or back), which a single polyline would otherwise draw as a
+   spurious line straight across the map. */
+function setupIssMap(svg) {
+  const { width: W, height: H } = svg.viewBox.baseVal;
+  const lonToX = (lon) => ((lon + 180) / 360) * W;
+  const latToY = (lat) => ((90 - lat) / 180) * H;
+
+  const land = ns("path");
+  land.setAttribute(
+    "d",
+    WORLD_LAND_RINGS.map(
+      (ring) => "M" + ring.map(([lon, lat]) => `${lonToX(lon)},${latToY(lat)}`).join("L") + "Z"
+    ).join(" ")
+  );
+  land.setAttribute("class", "iss-land");
+  svg.appendChild(land);
+
+  for (let lon = -180; lon <= 180; lon += 30) {
+    const line = ns("line");
+    line.setAttribute("x1", lonToX(lon));
+    line.setAttribute("x2", lonToX(lon));
+    line.setAttribute("y1", 0);
+    line.setAttribute("y2", H);
+    line.setAttribute("class", lon === 0 ? "iss-grid iss-grid-major" : "iss-grid");
+    svg.appendChild(line);
+  }
+  for (let lat = -60; lat <= 60; lat += 30) {
+    const line = ns("line");
+    line.setAttribute("x1", 0);
+    line.setAttribute("x2", W);
+    line.setAttribute("y1", latToY(lat));
+    line.setAttribute("y2", latToY(lat));
+    line.setAttribute("class", lat === 0 ? "iss-grid iss-grid-major" : "iss-grid");
+    svg.appendChild(line);
+  }
+
+  const trailGroup = ns("g");
+  svg.appendChild(trailGroup);
+
+  const dot = ns("circle");
+  dot.setAttribute("r", 3.5);
+  dot.setAttribute("class", "iss-dot");
+  dot.style.opacity = "0"; // hidden until the first real fix arrives
+  svg.appendChild(dot);
+
+  let placed = false;
+
+  return function render(data) {
+    trailGroup.innerHTML = "";
+    let segment = [];
+    const flushSegment = () => {
+      if (segment.length > 1) {
+        const poly = ns("polyline");
+        poly.setAttribute("points", segment.join(" "));
+        poly.setAttribute("class", "iss-trail");
+        trailGroup.appendChild(poly);
+      }
+      segment = [];
+    };
+    data.trail.forEach(([lat, lon], i) => {
+      if (i > 0 && Math.abs(lon - data.trail[i - 1][1]) > 180) flushSegment();
+      segment.push(`${lonToX(lon)},${latToY(lat)}`);
+    });
+    flushSegment();
+
+    if (data.trail.length === 0) return; // no fix yet
+    const x = lonToX(data.longitude);
+    const y = latToY(data.latitude);
+    if (!placed) {
+      dot.style.transitionDuration = "0s";
+      dot.setAttribute("cx", x);
+      dot.setAttribute("cy", y);
+      dot.getBoundingClientRect(); // force reflow before re-enabling the transition
+      dot.style.transitionDuration = "";
+      dot.style.opacity = "1";
+      placed = true;
+    } else {
+      dot.setAttribute("cx", x);
+      dot.setAttribute("cy", y);
+    }
+  };
+}
+
+function formatLatLon(lat, lon) {
+  const latDir = lat >= 0 ? "N" : "S";
+  const lonDir = lon >= 0 ? "E" : "W";
+  return `${Math.abs(lat).toFixed(2)}°${latDir}, ${Math.abs(lon).toFixed(2)}°${lonDir}`;
+}
+
 /* ── Snapshot polling (coin / dice / walk / collatz) ─────── */
 const coinProportion = document.getElementById("coin-proportion");
 const coinHeads = document.getElementById("coin-heads");
@@ -302,8 +399,12 @@ const renderGaltonBoard = setupGaltonBoard(document.getElementById("galton-chart
 const benfordChart = document.getElementById("benford-chart");
 const benfordTotal = document.getElementById("benford-total");
 
+const renderIssMap = setupIssMap(document.getElementById("iss-map"));
+const issCoords = document.getElementById("iss-coords");
+const issPeopleCount = document.getElementById("iss-people-count");
+
 function renderSnapshot(data) {
-  const { coin, dice, walk, collatz, monty, galton, benford } = data;
+  const { coin, dice, walk, collatz, monty, galton, benford, iss } = data;
 
   coinProportion.textContent = coin.proportion.toFixed(4);
   coinHeads.textContent = coin.heads.toLocaleString();
@@ -343,6 +444,10 @@ function renderSnapshot(data) {
 
   benfordTotal.textContent = benford.total.toLocaleString();
   renderBenfordChart(benfordChart, benford.counts);
+
+  if (iss.trail.length > 0) issCoords.textContent = formatLatLon(iss.latitude, iss.longitude);
+  issPeopleCount.textContent = iss.people_count.toLocaleString();
+  renderIssMap(iss);
 }
 
 async function pollSnapshot() {
@@ -1100,6 +1205,96 @@ setInterval(cycleDistScenario, 7500);
 window.addEventListener("resize", () => showDistScenario());
 themeToggle.addEventListener("click", () => setTimeout(showDistScenario, 0));
 
+/* ── Periodic Table ────────────────────────────────────────────
+   Highlights a random element every 10s and shows its details below —
+   real data (see periodic-table.js for provenance), not sampled or
+   generated. The grid mirrors a standard wall-chart layout: 18 columns,
+   with lanthanides/actinides pulled out into two rows below a blank
+   spacer row (row 8), driven by each element's xpos/ypos. Cells are
+   persistent DOM nodes (same reasoning as the Galton board's pegs) —
+   only the active element's classes change, never a full redraw. */
+function setupPeriodicGrid(svg) {
+  const { width: W, height: H } = svg.viewBox.baseVal;
+  const COLS = 18,
+    ROWS = 10;
+  const cellW = W / COLS,
+    cellH = H / ROWS;
+  const groupByNumber = new Map();
+
+  PERIODIC_ELEMENTS.forEach((el) => {
+    const x = (el.xpos - 1) * cellW;
+    const y = (el.ypos - 1) * cellH;
+
+    const g = ns("g");
+    g.setAttribute("class", "periodic-cell-group");
+
+    const rect = ns("rect");
+    rect.setAttribute("x", x + 0.5);
+    rect.setAttribute("y", y + 0.5);
+    rect.setAttribute("width", Math.max(cellW - 1, 1));
+    rect.setAttribute("height", Math.max(cellH - 1, 1));
+    rect.setAttribute("class", "periodic-cell");
+    g.appendChild(rect);
+
+    const label = ns("text");
+    label.setAttribute("x", x + cellW / 2);
+    label.setAttribute("y", y + cellH / 2 + 2.5);
+    label.setAttribute("text-anchor", "middle");
+    label.setAttribute("class", "periodic-symbol");
+    label.textContent = el.symbol;
+    g.appendChild(label);
+
+    svg.appendChild(g);
+    groupByNumber.set(el.number, g);
+  });
+
+  let activeGroup = null;
+  return function highlight(el) {
+    if (activeGroup) activeGroup.classList.remove("is-active");
+    activeGroup = groupByNumber.get(el.number);
+    if (activeGroup) activeGroup.classList.add("is-active");
+  };
+}
+
+const PERIODIC_HIGHLIGHT_MS = 10000;
+
+function setupPeriodicWidget() {
+  const svg = document.getElementById("periodic-chart");
+  const highlight = setupPeriodicGrid(svg);
+  const symbolEl = document.getElementById("periodic-symbol-big");
+  const nameEl = document.getElementById("periodic-name");
+  const numberEl = document.getElementById("periodic-number");
+  const massEl = document.getElementById("periodic-mass");
+  const categoryEl = document.getElementById("periodic-category");
+
+  let index = Math.floor(Math.random() * PERIODIC_ELEMENTS.length);
+
+  function render() {
+    const el = PERIODIC_ELEMENTS[index];
+    highlight(el);
+    symbolEl.textContent = el.symbol;
+    nameEl.textContent = el.name;
+    numberEl.textContent = el.number;
+    massEl.textContent = el.mass;
+    categoryEl.textContent = el.category;
+  }
+
+  function pickNext() {
+    if (PERIODIC_ELEMENTS.length > 1) {
+      let next;
+      do {
+        next = Math.floor(Math.random() * PERIODIC_ELEMENTS.length);
+      } while (next === index);
+      index = next;
+    }
+    render();
+  }
+
+  render();
+  setInterval(pickNext, PERIODIC_HIGHLIGHT_MS);
+}
+setupPeriodicWidget();
+
 /* ── "X of the day" widgets ───────────────────────────────────
    All five (Integral, Derivative, Probability, Stat, Number) are
    generated by Claude once per calendar day — see setupDailyQA and
@@ -1410,6 +1605,8 @@ const WIDGETS = [
   { id: "dice", label: "Central Limit Theorem" },
   { id: "galton", label: "Galton Board" },
   { id: "benford", label: "Benford's Law" },
+  { id: "iss", label: "ISS Tracker" },
+  { id: "periodic", label: "Periodic Table" },
   { id: "fact", label: "Digit by Digit" },
   { id: "quote", label: "Quote" },
   { id: "integral", label: "Integral of the Day" },

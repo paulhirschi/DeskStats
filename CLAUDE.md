@@ -10,25 +10,40 @@ Run it: `uv run uvicorn app.main:app --host 0.0.0.0 --port 8000`
 
 ## Architecture
 
-- **`app/main.py`** — FastAPI app. Three routes: `/` (index.html),
-  `/api/snapshot` (live sim state, polled every 1s), `/api/qotd/{qtype}`
-  (Claude-generated content, `?difficulty=` query param). Static files
-  and the index route both send `Cache-Control: no-cache` via a custom
-  `NoCacheStaticFiles` — see **Gotchas** below for why this matters.
-- **`app/simulations.py`** — `SimulationHub` owns every "live" widget's
-  state and ticks all of them every 0.5s via one background
+- **`app/main.py`** — FastAPI app. Routes: `/` (index.html),
+  `/api/snapshot` (live sim + ISS state, polled every 1s),
+  `/api/reset/{name}` (POST, restarts one `SimulationHub` sim — see
+  **Reset buttons** below), `/api/qotd/{qtype}` (Claude-generated
+  content, `?difficulty=` query param). Static files and the index route
+  both send `Cache-Control: no-cache` via a custom `NoCacheStaticFiles`
+  — see **Gotchas** below for why this matters.
+- **`app/simulations.py`** — `SimulationHub` owns every RNG-driven "live"
+  widget's state and ticks all of them every 0.5s via one background
   `asyncio.Task`. This is the single source of truth polled by
   `/api/snapshot` — it's what makes multiple displays (or just repeated
   reloads) see the *same* live numbers instead of each client running
   its own random sequence. Each sim is a small class with `tick()` +
-  `snapshot()`; to swap in real data later, replace a `tick()` body.
+  `snapshot()` + `reset()` (just re-runs `__init__`); `SimulationHub.
+  RESETTABLE` whitelists which sim names `/api/reset/{name}` accepts.
+- **`app/iss.py`** — `ISSTracker`, a second background task polling the
+  free Open Notify API (real position + crew, not simulated) on its own
+  slow ~5s/10min cadence — hitting SimulationHub's 0.5s tick would be
+  pointless and rude to a third party's free API. Its `snapshot()` is
+  merged into the same `/api/snapshot` payload under an `"iss"` key so
+  the frontend only needs the one poll loop. This is the app's one
+  dependency on outbound internet access beyond the Claude API (see the
+  `static/` bullet below) — a network hiccup just leaves the last-known
+  position in place rather than erroring the widget.
 - **`app/qotd.py`** — Claude API integration for the five "of the day"
   widgets. See **The QOTD system** below — this is the most involved
   part of the backend and worth understanding before touching it.
 - **`static/`** — no framework, no build step, no bundler. Plain
   `index.html` + `styles.css` + `app.js`. KaTeX is vendored locally at
-  `static/vendor/katex/` (self-hosted, not a CDN — this app should keep
-  working with no internet access except for the Claude API calls).
+  `static/vendor/katex/`, and the ISS tracker's world coastline is
+  vendored at `static/js/world-land.js` (both self-hosted, not a CDN).
+  Aside from `app/iss.py` polling Open Notify and `app/qotd.py` calling
+  the Claude API, this app runs with no internet access — the Pi's
+  browser itself only ever talks to this local server over LAN.
 - **`static/css/tokens.css`** — copied from
   `~/Projects/website/styles/tokens-{light,dark}.scss` (the portfolio
   site's own design tokens). Dark is the default theme (kinder on an
@@ -40,7 +55,7 @@ Run it: `uv run uvicorn app.main:app --host 0.0.0.0 --port 8000`
 The grid is **3 columns, always** — but the row count is responsive:
 **2 rows (6 slots)** normally, sliding in a **3rd row (9 slots)** once
 the viewport is both wide and tall enough (a tablet in landscape, a big
-monitor — not the 1024×600 baseline). There are currently **19
+monitor — not the 1024×600 baseline). There are currently **21
 widgets** registered in the `WIDGETS` array in `app.js`; the user picks
 which ones show, per visible slot, via the gear-icon settings modal.
 
@@ -102,16 +117,28 @@ How the slot mechanics work, because it's easy to get wrong:
 galton, benford) — state lives in `SimulationHub`, ticks every 0.5s,
 polled via `/api/snapshot` every 1s in `pollSnapshot()` →
 `renderSnapshot(data)`. Use this pattern for anything that should look
-"alive" and consistent across reloads/displays.
+"alive" and consistent across reloads/displays. Each of these seven has
+a reset button in its card-head — see **Reset buttons** below.
 
-**2. Client-side cycling** (bayes, dist, anscombe) — a small curated
-list of scenarios/datasets, computed deterministically in JS (exact
-math, not sampled), auto-advancing via `setInterval` every 7–8s. No
-backend involvement — these don't need live randomness, just variety.
-Anscombe's Quartet in particular reuses real published 1973 data and
-computes its regression line live from whichever dataset is showing
-(not a hardcoded line) — the fact that the line barely moves between
-datasets *is* the demonstration.
+**1b. Live/real-world-data** (iss) — same `/api/snapshot` poll, same
+"alive and consistent across displays" property, but the state isn't
+RNG-driven so there's nothing to usefully "reset": `ISSTracker` (in
+`app/iss.py`) polls a real external API on its own slower cadence
+instead of `SimulationHub`'s tick. If a future widget is backed by
+another real external API, follow this pattern rather than cramming it
+into `SimulationHub`.
+
+**2. Client-side cycling** (bayes, dist, anscombe, periodic) — a small
+curated list of scenarios/datasets, computed deterministically in JS
+(exact math, not sampled), auto-advancing via `setInterval` every
+7–10s. No backend involvement — these don't need live randomness, just
+variety. Anscombe's Quartet in particular reuses real published 1973
+data and computes its regression line live from whichever dataset is
+showing (not a hardcoded line) — the fact that the line barely moves
+between datasets *is* the demonstration. Periodic Table highlights a
+random element every 10s (`setInterval`, `Math.random()` — genuinely
+random, not a fixed cycle order) and reads its details from vendored
+real data; see the vendoring bullet below.
 
 **3. Claude-generated "of the day"** (integral, derivative, diffeq,
 probability, stat, numday) — see below.
@@ -193,6 +220,28 @@ no difficulty axis — it's a fact, not a problem to solve.
   Showdown) — the former needs persistent `<rect>`/`<circle>` nodes
   updated in place; the latter can clear `svg.innerHTML` and rebuild
   every tick since nothing needs to animate smoothly between redraws.
+- **Reset buttons** (`.card-reset-btn`, 16px, same sizing as
+  `.quote-shuffle`): every `SimulationHub`-backed widget's card-head has
+  one, wired in `app.js`'s `RESET_BUTTON_IDS` map to `POST
+  /api/reset/{name}`, which re-runs that sim's `__init__` server-side
+  and returns a fresh snapshot for an instant repaint (other displays
+  pick it up on their next 1s poll). Only add one for a widget whose
+  state is meaningfully "restartable" — the ISS tracker deliberately
+  doesn't have one, since its position isn't a simulation you reset.
+- **Vendoring real external datasets** (not just libraries): KaTeX is
+  vendored because it's a library; `static/js/world-land.js` (the ISS
+  tracker's coastline) and `static/js/periodic-table.js` (all 118
+  elements' number/symbol/name/mass/category/phase/grid-position) are
+  vendored because they're *data* — real Natural Earth and
+  Bowserinator/Periodic-Table-JSON datasets respectively, each trimmed
+  and (for the coastline) simplified, with the transformation and
+  source documented in the file's own header comment. Same principle as
+  the Anscombe/quote sourcing standards below: don't hand-approximate a
+  coastline, or hand-type 118 atomic masses, any more than you'd
+  hand-transcribe a digit string or invent a quote. The periodic table
+  data is also deliberately capped at 118 elements — the source
+  dataset's element 119 is an undiscovered, purely theoretical entry
+  and was dropped rather than presented as real.
 
 ## Environment & secrets
 
@@ -200,7 +249,9 @@ no difficulty axis — it's a fact, not a problem to solve.
   `ANTHROPIC_MODEL`; `.env.example` is the template. `load_dotenv()`
   runs at the top of `main.py`.
 - `uv` manages the venv + deps (`pyproject.toml` / `uv.lock`). Deps:
-  `fastapi`, `uvicorn[standard]`, `anthropic`, `python-dotenv`.
+  `fastapi`, `uvicorn[standard]`, `anthropic`, `python-dotenv`, `httpx`
+  (direct dep for `app/iss.py`'s Open Notify polling, though it was
+  already present transitively via `anthropic`).
 - `.claude/launch.json` has a `desk-dashboard` config for the
   run/preview tooling.
 
@@ -258,6 +309,11 @@ no difficulty axis — it's a fact, not a problem to solve.
    JS how many grid cells it decided to show. There's no build-time
    check tying these together — if you change one, grep for the other
    number and change it too.
+10. **Open Notify (the ISS API) doesn't reliably serve HTTPS** — an
+    `https://api.open-notify.org/...` request fails outright in this
+    environment. `app/iss.py` deliberately uses plain `http://`; don't
+    "fix" it to `https://` without first confirming the API actually
+    supports it from wherever the server is deployed.
 
 ## Content standards (quotes, facts, historical data)
 
